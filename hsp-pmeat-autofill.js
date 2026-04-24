@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         HSP Form Rapid Fill
+// @name         HSP PMEAT Form Rapid Fill
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Super fast sequential fill for Ant Design dropdowns
-// @author       You
+// @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/applicant/applicantForm
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // ==========================================================================
@@ -18,8 +18,36 @@
         'birthPlaceId': 5,
         'religion': 0,
         'currentEduClass': 2,
-        'currentEducationDiscipline': 3,
+        'currentEducationDiscipline': 0,
         'currentInstituteAdmissionSession': 0,
+
+        //Socioeconomic Information. //আর্থসামাজিক তথ্য
+        'parentsAliveStatus': 0,
+        'fatherEducationLevel': 0,
+        'motherEducationLevel': 0,
+        'studyingSiblingCount': 1,
+        'receivingAnotherScholarship': 1,
+        'personHasDisabilityCard': 1,
+        'personSufferingLongIllness': 1,
+        'guardianHasDisabilityCard': 1,
+        'guardianSufferingLongIllness': 1,
+        'familyMemberHasPhysicalOrMentalDisease': 1,
+        'guardianIncomeSource': 3,
+        'familyMemberInAbroad': 1,
+        'guardianJobRegion': 1,
+        'familyYearlyIncome': 0,
+        'familyMemberWithJobCount': 0,
+        'familyMemberCount': 1,
+        'ethnicMinorityGroupId': 0,
+        'houseRoomExtent': 1,
+        'houseMaterialType': 3,
+        'toiletType': 2,
+        'electricEquipmentType': 3,
+        'waterSource': 2,
+        'familyYearlyExpense': 0,
+        'ownedLandExtent': 1,
+        'guardianHasLoan': 1,
+        'personFromFreedomFighterGeneration': 1,
     };
 
     async function fillAntdRapid(inputId, optionIndex) {
