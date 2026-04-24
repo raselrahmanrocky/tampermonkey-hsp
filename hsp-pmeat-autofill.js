@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP Form Final Auto-Fill
+// @name         HSP Form Ultimate Fix
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  Auto fill Religion and Birth Place for HSP Form
+// @version      1.4
+// @description  Only select options from the VISIBLE dropdown
 // @author       You
 // @match        https://hsp.pmeat.gov.bd/applicant/applicantForm
 // @grant        none
@@ -11,28 +11,40 @@
 (function() {
     'use strict';
 
-    // ==========================================
-    // এখানে আপনার ফিল্ডের ID এবং ভ্যালু সেট করা হয়েছে
-    // ==========================================
-    const fieldsToFill = {
-        'religion': 'ইসলাম',
-        'birthPlaceId': 'বগুড়া',
+    // ==========================================================================
+    // ইনপুট আইডি এবং অপশন ইনডেক্স (০ = ১ম অপশন, ১ = ২য় অপশন...)
+    // ==========================================================================
+    const fieldConfig = {
+        'religion': 0,
+        'birthPlaceId': 5,
+        'currentEducationDiscipline': 3,
+        'currentEduClass': 2,
+        'currentInstituteAdmissionSession': 0,
+
+
+
+
+
+
+
+
+
     };
 
-    async function fillAntdSelect(elementId, targetValue) {
+    async function fillAntdByVisibleIndex(inputId, optionIndex) {
         return new Promise((resolve) => {
-            console.log(`${elementId} ফিল করার চেষ্টা করা হচ্ছে: ${targetValue}`);
+            console.log(`প্রসেসিং: ${inputId} এর ${optionIndex + 1} নম্বর অপশন...`);
 
-            const input = document.getElementById(elementId);
+            const input = document.getElementById(inputId);
             if (!input) {
-                console.log(`❌ ফিল্ড পাওয়া যায়নি: ${elementId}`);
+                console.log(`❌ ফিল্ড পাওয়া যায়নি: ${inputId}`);
                 return resolve();
             }
 
             const selector = input.closest('.ant-select-selector');
             if (!selector) return resolve();
 
-            // ড্রপডাউন ওপেন করার জন্য প্রয়োজনীয় ইভেন্টসমূহ
+            // ১. ড্রপডাউন ওপেন করা
             const triggerEvents = ['mousedown', 'mouseup', 'click'];
             triggerEvents.forEach(evtType => {
                 selector.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
@@ -43,19 +55,26 @@
 
             const checkInterval = setInterval(() => {
                 attempts++;
-                // পুরো পেজে অপশনগুলো খোঁজা হচ্ছে
-                const options = document.querySelectorAll('.ant-select-item-option-content');
 
-                options.forEach(option => {
-                    if (option.innerText.trim() === targetValue) {
+                // গুরুত্বপূর্ণ পরিবর্তন: শুধুমাত্র সেই ড্রপডাউনটি খুঁজবো যা 'hidden' ক্লাসের বাইরে (Active)
+                const activeDropdown = document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+
+                if (activeDropdown) {
+                    // শুধুমাত্র এই Active ড্রপডাউনের ভেতরের অপশনগুলো নেওয়া হচ্ছে
+                    const options = activeDropdown.querySelectorAll('.ant-select-item-option');
+
+                    if (options.length > optionIndex) {
+                        const targetOption = options[optionIndex];
+
                         const optEvents = ['mousedown', 'mouseup', 'click'];
                         optEvents.forEach(evtType => {
-                            option.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
+                            targetOption.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
                         });
+
                         found = true;
-                        console.log(`✅ সফলভাবে সিলেক্ট করা হয়েছে: ${targetValue}`);
+                        console.log(`✅ সফলভাবে সিলেক্ট করা হয়েছে: ${inputId} (Index: ${optionIndex})`);
                     }
-                });
+                }
 
                 if (found || attempts > 30) {
                     clearInterval(checkInterval);
@@ -66,20 +85,19 @@
     }
 
     async function startAutoFill() {
-        console.log("🚀 অটো-ফিল প্রসেস শুরু হচ্ছে...");
+        console.log("🚀 Advanced Auto-Fill শুরু হচ্ছে...");
 
-        // একটির পর একটি ফিল্ড পূরণ করবে যাতে রিয়্যাক্ট কনফিউজড না হয়
-        for (const [id, value] of Object.entries(fieldsToFill)) {
-            await fillAntdSelect(id, value);
-            // দুটি ফিল্ডের মাঝে ০.৭ সেকেন্ড গ্যাপ রাখা হয়েছে
-            await new Promise(r => setTimeout(r, 700));
+        for (const [inputId, index] of Object.entries(fieldConfig)) {
+            await fillAntdByVisibleIndex(inputId, index);
+            // একটি ফিল্ড শেষ হওয়ার পর ড্রপডাউনটি বন্ধ হতে এবং রিয়্যাক্ট স্টেট আপডেট হতে সময় দিন
+            await new Promise(r => setTimeout(r, 1200));
         }
 
-        console.log("🏁 সব ফিল্ড সফলভাবে পূরণ করা শেষ!");
+        console.log("🏁 সব কাজ সম্পন্ন হয়েছে!");
     }
 
-    // পেজ লোড হওয়ার ৩ সেকেন্ড পর অটো-ফিল শুরু হবে
     window.addEventListener('load', () => {
-        setTimeout(startAutoFill, 3000);
+        // পেজ লোড হওয়ার পর পর্যাপ্ত সময় দিন
+        setTimeout(startAutoFill, 4000);
     });
 })();
