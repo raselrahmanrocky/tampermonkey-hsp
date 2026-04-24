@@ -1,72 +1,85 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         HSP Form Final Auto-Fill
 // @namespace    http://tampermonkey.net/
-// @version      2026-04-24
-// @description  try to take over the world!
+// @version      1.1
+// @description  Auto fill Religion and Birth Place for HSP Form
 // @author       You
 // @match        https://hsp.pmeat.gov.bd/applicant/applicantForm
-// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // ১. আপনার পছন্দমতো অপশনটি এখানে লিখুন
-    const targetValue = "ইসলাম";
+    // ==========================================
+    // এখানে আপনার ফিল্ডের ID এবং ভ্যালু সেট করা হয়েছে
+    // ==========================================
+    const fieldsToFill = {
+        'religion': 'ইসলাম',
+        'birthPlaceId': 'বগুড়া',
+    };
 
-    async function forceSelectAntd() {
-        console.log("Force Fill শুরু হচ্ছে...");
+    async function fillAntdSelect(elementId, targetValue) {
+        return new Promise((resolve) => {
+            console.log(`${elementId} ফিল করার চেষ্টা করা হচ্ছে: ${targetValue}`);
 
-        // ২. religion ফিল্ডটি খুঁজে বের করা
-        const input = document.getElementById('religion');
-        if (!input) {
-            console.log("ফিল্ড পাওয়া যায়নি!");
-            return;
-        }
+            const input = document.getElementById(elementId);
+            if (!input) {
+                console.log(`❌ ফিল্ড পাওয়া যায়নি: ${elementId}`);
+                return resolve();
+            }
 
-        // ৩. সেলেক্টরটি খুঁজে বের করা এবং সেখানে ইভেন্ট ফায়ার করা
-        const selector = input.closest('.ant-select-selector');
-        if (!selector) return;
+            const selector = input.closest('.ant-select-selector');
+            if (!selector) return resolve();
 
-        // রিয়্যাক্ট যাতে বুঝতে পারে আমরা ক্লিক করেছি, তাই একাধিক ইভেন্ট পাঠানো হচ্ছে
-        const events = ['mousedown', 'mouseup', 'click'];
-        events.forEach(evtType => {
-            selector.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
-        });
-
-        console.log("ড্রপডাউন ওপেন করার চেষ্টা করা হয়েছে...");
-
-        // ৪. অপশনটি খুঁজে বের করে ক্লিক করার জন্য লুপ চালানো
-        let found = false;
-        let attempts = 0;
-
-        const checkInterval = setInterval(() => {
-            attempts++;
-            // Ant Design-এর অপশনগুলোর ক্লাস সাধারণত এটি হয়
-            const options = document.querySelectorAll('.ant-select-item-option-content');
-
-            options.forEach(option => {
-                if (option.innerText.trim() === targetValue) {
-                    // অপশনেও একইভাবে একাধিক ইভেন্ট ফায়ার করা
-                    const optEvents = ['mousedown', 'mouseup', 'click'];
-                    optEvents.forEach(evtType => {
-                        option.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
-                    });
-                    found = true;
-                    console.log("সফলভাবে সিলেক্ট করা হয়েছে: " + targetValue);
-                }
+            // ড্রপডাউন ওপেন করার জন্য প্রয়োজনীয় ইভেন্টসমূহ
+            const triggerEvents = ['mousedown', 'mouseup', 'click'];
+            triggerEvents.forEach(evtType => {
+                selector.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
             });
 
-            if (found || attempts > 30) {
-                clearInterval(checkInterval);
-                if (!found) console.log("অপশনটি খুঁজে পাওয়া যায়নি।");
-            }
-        }, 200);
+            let found = false;
+            let attempts = 0;
+
+            const checkInterval = setInterval(() => {
+                attempts++;
+                // পুরো পেজে অপশনগুলো খোঁজা হচ্ছে
+                const options = document.querySelectorAll('.ant-select-item-option-content');
+
+                options.forEach(option => {
+                    if (option.innerText.trim() === targetValue) {
+                        const optEvents = ['mousedown', 'mouseup', 'click'];
+                        optEvents.forEach(evtType => {
+                            option.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
+                        });
+                        found = true;
+                        console.log(`✅ সফলভাবে সিলেক্ট করা হয়েছে: ${targetValue}`);
+                    }
+                });
+
+                if (found || attempts > 30) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 200);
+        });
     }
 
-    // পেজ লোড হওয়ার পর একটু সময় দিয়ে চালানো
+    async function startAutoFill() {
+        console.log("🚀 অটো-ফিল প্রসেস শুরু হচ্ছে...");
+
+        // একটির পর একটি ফিল্ড পূরণ করবে যাতে রিয়্যাক্ট কনফিউজড না হয়
+        for (const [id, value] of Object.entries(fieldsToFill)) {
+            await fillAntdSelect(id, value);
+            // দুটি ফিল্ডের মাঝে ০.৭ সেকেন্ড গ্যাপ রাখা হয়েছে
+            await new Promise(r => setTimeout(r, 700));
+        }
+
+        console.log("🏁 সব ফিল্ড সফলভাবে পূরণ করা শেষ!");
+    }
+
+    // পেজ লোড হওয়ার ৩ সেকেন্ড পর অটো-ফিল শুরু হবে
     window.addEventListener('load', () => {
-        setTimeout(forceSelectAntd, 2000);
+        setTimeout(startAutoFill, 3000);
     });
 })();
