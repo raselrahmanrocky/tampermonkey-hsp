@@ -15,10 +15,10 @@
     // ইনপুট আইডি এবং অপশন ইনডেক্স (০ = ১ম অপশন, ১ = ২য় অপশন...)
     // ==========================================================================
     const fieldConfig = {
-        'religion': 0,
         'birthPlaceId': 5,
-        'currentEducationDiscipline': 3,
+        'religion': 0,
         'currentEduClass': 2,
+        'currentEducationDiscipline': 3,
         'currentInstituteAdmissionSession': 0,
     };
 
@@ -60,7 +60,7 @@
                     clearInterval(checkInterval);
                     resolve();
                 }
-            }, 50); // খুব দ্রুত চেক করবে
+            }, 80); // খুব দ্রুত চেক করবে
         });
     }
 
