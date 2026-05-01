@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Form Rapid Fill (Tab 3 with Delay)
-// @namespace    http://tampermonkey.net/
-// @version      1.8
-// @description  Super fast sequential fill for Ant Design dropdowns - Only works on Tab 3 after 6s delay
+// @name         HSP PMEAT Multi-Tab Auto Fill
+// @namespace    http://facebook.com/raselrahmanrocky/
+// @version      2.0
+// @description  Tab-wise sequential fill for Ant Design dropdowns with delay
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -11,49 +11,51 @@
 (function () {
     'use strict';
 
-    // ট্যাব ৩ এ যাওয়ার পর কত মিলি-সেকেন্ড অপেক্ষা করবে (৬০০০ মি.সে. = ৬ সেকেন্ড)
-    const waitDelay = 6000;
-
-    // ==========================================================================
-    // ইনপুট আইডি এবং অপশন ইনডেক্স
-    // ==========================================================================
-    const fieldConfig = {
-        'birthPlaceId': 5,
-        'religion': 0,
-        'currentEduClass': 2,
-        'currentEducationDiscipline': 0,
-        'currentInstituteAdmissionSession': 0,
-
-        //Socioeconomic Information. //আর্থসামাজিক তথ্য
-        'parentsAliveStatus': 0,
-        'fatherEducationLevel': 0,
-        'motherEducationLevel': 0,
-        'studyingSiblingCount': 1,
-        'receivingAnotherScholarship': 1,
-        'personHasDisabilityCard': 1,
-        'personSufferingLongIllness': 1,
-        'guardianHasDisabilityCard': 1,
-        'guardianSufferingLongIllness': 1,
-        'familyMemberHasPhysicalOrMentalDisease': 1,
-        'guardianIncomeSource': 3,
-        'familyMemberInAbroad': 1,
-        'guardianJobRegion': 1,
-        'familyYearlyIncome': 0,
-        'familyMemberWithJobCount': 0,
-        'familyMemberCount': 1,
-        'ethnicMinorityGroupId': 0,
-        'houseRoomExtent': 1,
-        'houseMaterialType': 3,
-        'toiletType': 2,
-        'electricEquipmentType': 3,
-        'waterSource': 2,
-        'familyYearlyExpense': 0,
-        'ownedLandExtent': 1,
-        'guardianHasLoan': 1,
-        'personFromFreedomFighterGeneration': 1,
+    // ট্যাব অনুযায়ী ফিল্ড কনফিগারেশন
+    const tabConfigs = {
+        "1": { // ট্যাব ১-এর ফিল্ডসমূহ
+            'birthPlaceId': 5,
+            'religion': 0,
+            'currentEduClass': 2,
+            'currentEducationDiscipline': 0,
+            'currentInstituteAdmissionSession': 0,
+        },
+        "2": { // ট্যাব ২-এর জন্য (আপনি চাইলে এখানে আইডি যোগ করতে পারেন)
+            // 'exampleFieldId': 0,
+        },
+        "3": { // ট্যাব ৩-এর ফিল্ডসমূহ (আর্থসামাজিক তথ্য)
+            'parentsAliveStatus': 0,
+            'fatherEducationLevel': 0,
+            'motherEducationLevel': 0,
+            'studyingSiblingCount': 1,
+            'receivingAnotherScholarship': 1,
+            'personHasDisabilityCard': 1,
+            'personSufferingLongIllness': 1,
+            'guardianHasDisabilityCard': 1,
+            'guardianSufferingLongIllness': 1,
+            'familyMemberHasPhysicalOrMentalDisease': 1,
+            'guardianIncomeSource': 3,
+            'familyMemberInAbroad': 1,
+            'guardianJobRegion': 1,
+            'familyYearlyIncome': 0,
+            'familyMemberWithJobCount': 0,
+            'familyMemberCount': 1,
+            'ethnicMinorityGroupId': 0,
+            'houseRoomExtent': 1,
+            'houseMaterialType': 3,
+            'toiletType': 2,
+            'electricEquipmentType': 3,
+            'waterSource': 2,
+            'familyYearlyExpense': 0,
+            'ownedLandExtent': 1,
+            'guardianHasLoan': 1,
+            'personFromFreedomFighterGeneration': 1,
+        }
     };
 
-    let isFilled = false;
+    // কোন ট্যাব অলরেডি ফিল হয়েছে কি না তা ট্র্যাক করার জন্য
+    let completedTabs = { "1": false, "2": false, "3": false };
+    const globalWaitDelay = 6000; // ট্যাবে যাওয়ার পর ৬ সেকেন্ড অপেক্ষা করবে
 
     async function fillAntdRapid(inputId, optionIndex) {
         return new Promise((resolve) => {
@@ -64,9 +66,7 @@
             if (!selector) return resolve();
 
             const triggerEvents = ['mousedown', 'mouseup', 'click'];
-            triggerEvents.forEach(evtType => {
-                selector.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
-            });
+            triggerEvents.forEach(evt => selector.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window })));
 
             let found = false;
             let attempts = 0;
@@ -79,10 +79,7 @@
                     const options = activeDropdown.querySelectorAll('.ant-select-item-option');
                     if (options.length > optionIndex) {
                         const targetOption = options[optionIndex];
-                        const optEvents = ['mousedown', 'mouseup', 'click'];
-                        optEvents.forEach(evtType => {
-                            targetOption.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
-                        });
+                        ['mousedown', 'mouseup', 'click'].forEach(evt => targetOption.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window })));
                         found = true;
                     }
                 }
@@ -91,39 +88,44 @@
                     clearInterval(checkInterval);
                     resolve();
                 }
-            }, 80);
+            }, 100);
         });
     }
 
-    async function startAutoFill() {
-        console.log("🚀 ডিলে শেষ! এখন Rapid Auto-Fill শুরু হচ্ছে...");
+    async function processAutoFill(tabId) {
+        const config = tabConfigs[tabId];
+        if (!config || Object.keys(config).length === 0) return;
 
-        for (const [inputId, index] of Object.entries(fieldConfig)) {
+        console.log(`🚀 ট্যাব ${tabId}-এর জন্য অটো-ফিল শুরু হচ্ছে...`);
+
+        for (const [inputId, index] of Object.entries(config)) {
             await fillAntdRapid(inputId, index);
-            // ড্রপডাউনগুলোর মাঝখানের গ্যাপ ৩৫০ মিলি-সেকেন্ড
-            await new Promise(r => setTimeout(r, 350));
+            await new Promise(r => setTimeout(r, 400)); // প্রতিটি ফিল্ডের মাঝখানের ডিলে
         }
 
-        console.log("🏁 ৩ নম্বর ট্যাবের সব কাজ সম্পন্ন হয়েছে!");
+        console.log(`🏁 ট্যাব ${tabId}-এর কাজ শেষ!`);
     }
 
-    // কন্ডিশন চেক করার ফাংশন
-    function checkTabAndRun() {
-        if (isFilled) return;
+    function monitorTabs() {
+        // বর্তমানে কোন ট্যাবটি একটিভ আছে তা দেখা
+        const activeTabElement = document.querySelector('.ant-tabs-tab-active');
+        if (!activeTabElement) return;
 
-        // চেক করছে সেই ট্যাবটি যার data-node-key="3" এবং সেটি active ক্লাসে আছে
-        const tab3 = document.querySelector('.ant-tabs-tab-active[data-node-key="3"]');
+        const currentTabKey = activeTabElement.getAttribute('data-node-key');
 
-        if (tab3) {
-            isFilled = true; // যেন বার বার টাইমার সেট না হয়
-            console.log(`✅ Tab 3 শনাক্ত হয়েছে। ${waitDelay/1000} সেকেন্ড পর অটো-ফিল শুরু হবে...`);
+        // যদি ট্যাবটি কনফিগারেশনে থাকে এবং আগে ফিল না করা হয়ে থাকে
+        if (tabConfigs[currentTabKey] && !completedTabs[currentTabKey]) {
+            completedTabs[currentTabKey] = true; // এখনই মার্ক করে দিচ্ছি যেন বার বার টাইমার শুরু না হয়
 
-            // নির্দিষ্ট সময় পর অটো-ফিল ফাংশন কল করা হবে
-            setTimeout(startAutoFill, waitDelay);
+            console.log(`✅ ট্যাব ${currentTabKey} শনাক্ত হয়েছে। ${globalWaitDelay/1000} সেকেন্ড অপেক্ষা করুন...`);
+
+            setTimeout(() => {
+                processAutoFill(currentTabKey);
+            }, globalWaitDelay);
         }
     }
 
-    // প্রতি ১ সেকেন্ড পরপর চেক করবে আপনি ৩ নম্বর ট্যাবে গিয়েছেন কি না
-    setInterval(checkTabAndRun, 1000);
+    // প্রতি ১ সেকেন্ড পরপর ট্যাবের পরিবর্তন চেক করবে
+    setInterval(monitorTabs, 1000);
 
 })();
