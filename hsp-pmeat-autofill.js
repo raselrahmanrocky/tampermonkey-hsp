@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Multi-Tab Auto Fill
+// @name         HSP PMEAT Multi-Tab Auto Fill (With Floating Button)
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      2.1
-// @description  Tab-wise sequential fill for Ant Design dropdowns with delay and checkbox support
+// @version      2.2
+// @description  Tab-wise sequential fill with a floating manual trigger button
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -11,6 +11,7 @@
 (function () {
     'use strict';
 
+    // ট্যাব অনুযায়ী ফিল্ড কনফিগারেশন
     const tabConfigs = {
         "1": {
             'birthPlaceId': 5,
@@ -57,6 +58,40 @@
     let completedTabs = { "1": false, "2": false, "3": false };
     const globalWaitDelay = 6000;
 
+    // --- Floating Button তৈরি ---
+    const floatBtn = document.createElement('div');
+    floatBtn.innerHTML = '🚀 Fill Data';
+    floatBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #1890ff;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        z-index: 9999;
+        font-weight: bold;
+        font-family: sans-serif;
+        user-select: none;
+        transition: 0.3s;
+    `;
+    floatBtn.onmouseover = () => floatBtn.style.background = '#40a9ff';
+    floatBtn.onmouseout = () => floatBtn.style.background = '#1890ff';
+    document.body.appendChild(floatBtn);
+
+    // বাটনে ক্লিক করলে যা হবে
+    floatBtn.onclick = () => {
+        const activeTabElement = document.querySelector('.ant-tabs-tab-active');
+        if (activeTabElement) {
+            const currentTabKey = activeTabElement.getAttribute('data-node-key');
+            processAutoFill(currentTabKey);
+        } else {
+            alert("কোনো একটিভ ট্যাব পাওয়া যায়নি!");
+        }
+    };
+
     async function fillAntdRapid(inputId, optionIndex) {
         return new Promise((resolve) => {
             const input = document.getElementById(inputId);
@@ -94,9 +129,15 @@
 
     async function processAutoFill(tabId) {
         const config = tabConfigs[tabId];
-        if (!config || Object.keys(config).length === 0) return;
+        if (!config) {
+            console.log(`ট্যাব ${tabId}-এর জন্য কোনো কনফিগারেশন নেই।`);
+            return;
+        }
 
-        console.log(`🚀 ট্যাব ${tabId}-এর জন্য অটো-ফিল শুরু হচ্ছে...`);
+        floatBtn.style.background = '#ff4d4f'; // কাজ চলাকালীন লাল রঙ হবে
+        floatBtn.innerText = '⏳ Filling...';
+
+        console.log(`🚀 ট্যাব ${tabId}-এর কাজ শুরু...`);
 
         // ড্রপডাউনগুলো ফিল করা
         for (const [inputId, index] of Object.entries(config)) {
@@ -104,21 +145,26 @@
             await new Promise(r => setTimeout(r, 400));
         }
 
-        // --- নতুন অংশ: ট্যাব ২-এ চেকবক্স সিলেক্ট করা ---
+        // ট্যাব ২-এর চেকবক্স স্পেশাল হ্যান্ডলিং
         if (tabId === "2") {
             const checkbox = document.getElementById('sameAsPermanent');
             if (checkbox && !checkbox.checked) {
-                console.log("✅ 'একই স্থায়ী ঠিকানার সাথে' চেকবক্সটি সিলেক্ট করা হচ্ছে...");
-                checkbox.click(); // চেকবক্সে ক্লিক করা হচ্ছে
-                // Ant Design-এর ক্ষেত্রে মাঝে মাঝে সরাসরি ইভেন্ট ট্রিগার করতে হয়
+                checkbox.click();
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
-        // ------------------------------------------
 
         console.log(`🏁 ট্যাব ${tabId}-এর কাজ শেষ!`);
+        floatBtn.style.background = '#52c41a'; // শেষ হলে সবুজ রঙ
+        floatBtn.innerText = '✅ Success!';
+
+        setTimeout(() => {
+            floatBtn.style.background = '#1890ff';
+            floatBtn.innerText = '🚀 Fill Data';
+        }, 2000);
     }
 
+    // অটো-মনিটর (ট্যাবে গেলে নিজে থেকেই ফিল হবে, আগের মতো)
     function monitorTabs() {
         const activeTabElement = document.querySelector('.ant-tabs-tab-active');
         if (!activeTabElement) return;
@@ -127,7 +173,7 @@
 
         if (tabConfigs[currentTabKey] && !completedTabs[currentTabKey]) {
             completedTabs[currentTabKey] = true;
-            console.log(`✅ ট্যাব ${currentTabKey} শনাক্ত হয়েছে। ${globalWaitDelay/1000} সেকেন্ড অপেক্ষা করুন...`);
+            console.log(`✅ অটো-ফিল ডিলে শুরু: ${globalWaitDelay/1000}s`);
 
             setTimeout(() => {
                 processAutoFill(currentTabKey);
