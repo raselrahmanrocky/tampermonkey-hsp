@@ -1,18 +1,21 @@
 // ==UserScript==
-// @name         HSP PMEAT Form Rapid Fill
+// @name         HSP PMEAT Form Rapid Fill (Tab 3 with Delay)
 // @namespace    http://tampermonkey.net/
-// @version      1.6
-// @description  Super fast sequential fill for Ant Design dropdowns
+// @version      1.8
+// @description  Super fast sequential fill for Ant Design dropdowns - Only works on Tab 3 after 6s delay
 // @author       Md. Rasel Rahman Rocky
-// @match        https://hsp.pmeat.gov.bd/applicant/applicantForm
+// @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
 // ==/UserScript==
 
 (function () {
     'use strict';
 
+    // ট্যাব ৩ এ যাওয়ার পর কত মিলি-সেকেন্ড অপেক্ষা করবে (৬০০০ মি.সে. = ৬ সেকেন্ড)
+    const waitDelay = 6000;
+
     // ==========================================================================
-    // ইনপুট আইডি এবং অপশন ইনডেক্স (০ = ১ম অপশন, ১ = ২য় অপশন...)
+    // ইনপুট আইডি এবং অপশন ইনডেক্স
     // ==========================================================================
     const fieldConfig = {
         'birthPlaceId': 5,
@@ -50,6 +53,8 @@
         'personFromFreedomFighterGeneration': 1,
     };
 
+    let isFilled = false;
+
     async function fillAntdRapid(inputId, optionIndex) {
         return new Promise((resolve) => {
             const input = document.getElementById(inputId);
@@ -58,7 +63,6 @@
             const selector = input.closest('.ant-select-selector');
             if (!selector) return resolve();
 
-            // ড্রপডাউন ওপেন করা
             const triggerEvents = ['mousedown', 'mouseup', 'click'];
             triggerEvents.forEach(evtType => {
                 selector.dispatchEvent(new MouseEvent(evtType, { bubbles: true, cancelable: true, view: window }));
@@ -67,7 +71,6 @@
             let found = false;
             let attempts = 0;
 
-            // অপশন খোঁজার ইন্টারভাল অনেক কমিয়ে দেওয়া হয়েছে (৫০ মিলি-সেকেন্ড)
             const checkInterval = setInterval(() => {
                 attempts++;
                 const activeDropdown = document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
@@ -88,28 +91,39 @@
                     clearInterval(checkInterval);
                     resolve();
                 }
-            }, 80); // খুব দ্রুত চেক করবে
+            }, 80);
         });
     }
 
     async function startAutoFill() {
-        console.log("🚀 Rapid Auto-Fill শুরু হচ্ছে...");
+        console.log("🚀 ডিলে শেষ! এখন Rapid Auto-Fill শুরু হচ্ছে...");
 
         for (const [inputId, index] of Object.entries(fieldConfig)) {
             await fillAntdRapid(inputId, index);
-            // ফিল্ডগুলোর মাঝের গ্যাপ কমিয়ে ৪০০ মিলি-সেকেন্ড করা হয়েছে
-            await new Promise(r => setTimeout(r, 400));
+            // ড্রপডাউনগুলোর মাঝখানের গ্যাপ ৩৫০ মিলি-সেকেন্ড
+            await new Promise(r => setTimeout(r, 350));
         }
 
-        console.log("🏁 সব কাজ দ্রুত সম্পন্ন হয়েছে!");
+        console.log("🏁 ৩ নম্বর ট্যাবের সব কাজ সম্পন্ন হয়েছে!");
     }
 
-    // পেজ লোড হওয়ার সাথে সাথেই শুরু করার জন্য সময় কমিয়ে দেওয়া হয়েছে
-    if (document.readyState === 'complete') {
-        setTimeout(startAutoFill, 1000);
-    } else {
-        window.addEventListener('load', () => {
-            setTimeout(startAutoFill, 1000);
-        });
+    // কন্ডিশন চেক করার ফাংশন
+    function checkTabAndRun() {
+        if (isFilled) return;
+
+        // চেক করছে সেই ট্যাবটি যার data-node-key="3" এবং সেটি active ক্লাসে আছে
+        const tab3 = document.querySelector('.ant-tabs-tab-active[data-node-key="3"]');
+
+        if (tab3) {
+            isFilled = true; // যেন বার বার টাইমার সেট না হয়
+            console.log(`✅ Tab 3 শনাক্ত হয়েছে। ${waitDelay/1000} সেকেন্ড পর অটো-ফিল শুরু হবে...`);
+
+            // নির্দিষ্ট সময় পর অটো-ফিল ফাংশন কল করা হবে
+            setTimeout(startAutoFill, waitDelay);
+        }
     }
+
+    // প্রতি ১ সেকেন্ড পরপর চেক করবে আপনি ৩ নম্বর ট্যাবে গিয়েছেন কি না
+    setInterval(checkTabAndRun, 1000);
+
 })();
