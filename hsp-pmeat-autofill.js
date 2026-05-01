@@ -21,7 +21,9 @@
             'currentInstituteAdmissionSession': 0,
         },
         "2": { // ট্যাব ২-এর জন্য (আপনি চাইলে এখানে আইডি যোগ করতে পারেন)
-            // 'exampleFieldId': 0,
+            'personPermanentDivisionId': 5,
+            'personPermanentDistrictId': 0,
+            'personPermanentUpazilaId': 3,
         },
         "3": { // ট্যাব ৩-এর ফিল্ডসমূহ (আর্থসামাজিক তথ্য)
             'parentsAliveStatus': 0,
