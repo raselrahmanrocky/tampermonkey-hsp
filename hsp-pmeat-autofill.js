@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HSP PMEAT Multi-Tab Auto Fill
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      2.0
-// @description  Tab-wise sequential fill for Ant Design dropdowns with delay
+// @version      2.1
+// @description  Tab-wise sequential fill for Ant Design dropdowns with delay and checkbox support
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -11,21 +11,20 @@
 (function () {
     'use strict';
 
-    // ট্যাব অনুযায়ী ফিল্ড কনফিগারেশন
     const tabConfigs = {
-        "1": { // ট্যাব ১-এর ফিল্ডসমূহ
+        "1": {
             'birthPlaceId': 5,
             'religion': 0,
             'currentEduClass': 2,
             'currentEducationDiscipline': 0,
             'currentInstituteAdmissionSession': 0,
         },
-        "2": { // ট্যাব ২-এর জন্য (আপনি চাইলে এখানে আইডি যোগ করতে পারেন)
+        "2": {
             'personPermanentDivisionId': 5,
             'personPermanentDistrictId': 0,
             'personPermanentUpazilaId': 3,
         },
-        "3": { // ট্যাব ৩-এর ফিল্ডসমূহ (আর্থসামাজিক তথ্য)
+        "3": {
             'parentsAliveStatus': 0,
             'fatherEducationLevel': 0,
             'motherEducationLevel': 0,
@@ -55,9 +54,8 @@
         }
     };
 
-    // কোন ট্যাব অলরেডি ফিল হয়েছে কি না তা ট্র্যাক করার জন্য
     let completedTabs = { "1": false, "2": false, "3": false };
-    const globalWaitDelay = 6000; // ট্যাবে যাওয়ার পর ৬ সেকেন্ড অপেক্ষা করবে
+    const globalWaitDelay = 6000;
 
     async function fillAntdRapid(inputId, optionIndex) {
         return new Promise((resolve) => {
@@ -100,25 +98,35 @@
 
         console.log(`🚀 ট্যাব ${tabId}-এর জন্য অটো-ফিল শুরু হচ্ছে...`);
 
+        // ড্রপডাউনগুলো ফিল করা
         for (const [inputId, index] of Object.entries(config)) {
             await fillAntdRapid(inputId, index);
-            await new Promise(r => setTimeout(r, 400)); // প্রতিটি ফিল্ডের মাঝখানের ডিলে
+            await new Promise(r => setTimeout(r, 400));
         }
+
+        // --- নতুন অংশ: ট্যাব ২-এ চেকবক্স সিলেক্ট করা ---
+        if (tabId === "2") {
+            const checkbox = document.getElementById('sameAsPermanent');
+            if (checkbox && !checkbox.checked) {
+                console.log("✅ 'একই স্থায়ী ঠিকানার সাথে' চেকবক্সটি সিলেক্ট করা হচ্ছে...");
+                checkbox.click(); // চেকবক্সে ক্লিক করা হচ্ছে
+                // Ant Design-এর ক্ষেত্রে মাঝে মাঝে সরাসরি ইভেন্ট ট্রিগার করতে হয়
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+        // ------------------------------------------
 
         console.log(`🏁 ট্যাব ${tabId}-এর কাজ শেষ!`);
     }
 
     function monitorTabs() {
-        // বর্তমানে কোন ট্যাবটি একটিভ আছে তা দেখা
         const activeTabElement = document.querySelector('.ant-tabs-tab-active');
         if (!activeTabElement) return;
 
         const currentTabKey = activeTabElement.getAttribute('data-node-key');
 
-        // যদি ট্যাবটি কনফিগারেশনে থাকে এবং আগে ফিল না করা হয়ে থাকে
         if (tabConfigs[currentTabKey] && !completedTabs[currentTabKey]) {
-            completedTabs[currentTabKey] = true; // এখনই মার্ক করে দিচ্ছি যেন বার বার টাইমার শুরু না হয়
-
+            completedTabs[currentTabKey] = true;
             console.log(`✅ ট্যাব ${currentTabKey} শনাক্ত হয়েছে। ${globalWaitDelay/1000} সেকেন্ড অপেক্ষা করুন...`);
 
             setTimeout(() => {
@@ -127,7 +135,6 @@
         }
     }
 
-    // প্রতি ১ সেকেন্ড পরপর ট্যাবের পরিবর্তন চেক করবে
     setInterval(monitorTabs, 1000);
 
 })();
