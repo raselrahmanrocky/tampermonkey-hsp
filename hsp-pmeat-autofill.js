@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Multi-Tab Auto Fill (Compact UI)
+// @name         HSP PMEAT Multi-Tab Auto Fill (Progress %)
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      4.2
-// @description  Small and Compact UI with perfectly aligned buttons, Default Reset, and Toast Notifications
+// @version      4.6
+// @description  Compact UI with Percentage (%) Progress, Default Reset, and Toast Notifications
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -90,8 +90,8 @@
     let stopRequested = false;
 
     // --- UI Construction ---
-    const commonHeight = "34px"; // বাটন ছোট করার জন্য হাইট কমানো হয়েছে
-    const borderRadius = "8px"; // ছোট বাটনের সাথে মানানসই রেডিয়াস
+    const commonHeight = "34px";
+    const borderRadius = "8px";
 
     const container = document.createElement('div');
     container.style.cssText = `position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; align-items: center; gap: 8px; font-family: 'Segoe UI', Arial, sans-serif;`;
@@ -109,19 +109,19 @@
         }, 2000);
     }
 
-    // Main Start/Stop Button
+    // Main Button
     const floatBtn = document.createElement('div');
     floatBtn.style.cssText = `
         background: linear-gradient(135deg, #1890ff 0%, #0050b3 100%); color: white; 
         height: ${commonHeight}; padding: 0 16px; box-sizing: border-box;
         border-radius: ${borderRadius}; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         font-weight: 600; font-size: 13px; user-select: none; transition: 0.3s; 
-        display: flex; align-items: center; justify-content: center; min-width: 120px;
+        display: flex; align-items: center; justify-content: center; min-width: 130px;
     `;
     floatBtn.innerHTML = '🚀 Start Filling';
     container.appendChild(floatBtn);
 
-    // Settings Icon Button
+    // Settings Icon
     const settingsBtn = document.createElement('div');
     settingsBtn.innerHTML = '⚙️';
     settingsBtn.style.cssText = `
@@ -145,7 +145,7 @@
     container.appendChild(settingsPanel);
 
     const style = document.createElement('style');
-    style.innerHTML = `@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @keyframes fadeInDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } } .default-link { font-size: 10px; color: #1890ff; cursor: pointer; font-weight: bold; } #saveSettingsBtn:hover { background: #40a9ff !important; }`;
+    style.innerHTML = `@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @keyframes fadeInDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } } .default-link { font-size: 10px; color: #1890ff; cursor: pointer; font-weight: bold; text-decoration: underline; } #saveSettingsBtn:hover { background: #40a9ff !important; }`;
     document.head.appendChild(style);
 
     // --- Event Handling ---
@@ -181,11 +181,11 @@
         showToast("Saved!");
     };
 
-    // --- Fill Engine ---
-    function updateBtnUI(state) {
+    // --- Progress & UI Engine ---
+    function updateBtnUI(state, percent = 0) {
         if (state === 'running') {
             floatBtn.style.background = 'linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%)';
-            floatBtn.innerHTML = '🛑 Stop';
+            floatBtn.innerHTML = `🛑 Stop (${percent}%)`;
         } else if (state === 'success') {
             floatBtn.style.background = '#52c41a';
             floatBtn.innerHTML = '✅ Done';
@@ -209,6 +209,7 @@
         }
     };
 
+    // --- Core Fill Engine ---
     async function fillAntdRapid(inputId, optionIndex) {
         if (stopRequested) return;
         return new Promise((resolve) => {
@@ -254,14 +255,26 @@
     async function processAutoFill(tabId) {
         const config = tabConfigs[tabId];
         if (!config) return;
+        const entries = Object.entries(config);
+        const totalFields = entries.length;
+        let completedCount = 0;
+
         isProcessing = true;
         stopRequested = false;
-        updateBtnUI('running');
-        for (const [inputId, index] of Object.entries(config)) {
+        updateBtnUI('running', 0);
+
+        for (const [inputId, index] of entries) {
             if (stopRequested) break;
             await fillAntdRapid(inputId, index);
+            completedCount++;
+
+            // শতাংশ (%) হিসেব করা হচ্ছে
+            let percent = Math.round((completedCount / totalFields) * 100);
+            updateBtnUI('running', percent);
+
             await new Promise(r => setTimeout(r, settings.fieldDelay));
         }
+
         if (tabId === "2" && !stopRequested) {
             const checkbox = document.getElementById('sameAsPermanent');
             if (checkbox && !checkbox.checked) {
@@ -271,6 +284,7 @@
                 }));
             }
         }
+
         isProcessing = false;
         updateBtnUI(stopRequested ? 'stopped' : 'success');
         stopRequested = false;
