@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Multi-Tab Auto Fill (With Settings - Fixed English Num)
+// @name         HSP PMEAT Multi-Tab Auto Fill (Pro UI + Reset + Toast)
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      3.1
-// @description  Fill Ant Design forms with a floating Start/Stop toggle button and Settings menu (English Numbers Fixed)
+// @version      3.8
+// @description  Premium UI with Default Reset, Mouse Wheel, and Toast Notifications
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -11,7 +11,14 @@
 (function () {
    'use strict';
 
-   // বাংলা সংখ্যাকে ইংরেজিতে রূপান্তর করার ফাংশন
+   // --- Constants & Defaults ---
+   const DEFAULTS = {
+      autoFillEnabled: true,
+      tabWaitDelay: 6000,
+      fieldDelay: 400
+   };
+
+   // --- Utility Functions ---
    function convertToEn(str) {
       const banglaNums = {
          '০': 0,
@@ -22,19 +29,15 @@
          '৫': 5,
          '৬': 6,
          '৭': 7,
-         '৮': 8,
+         '८': 8,
          '৯': 9
       };
-      return String(str).replace(/[০-৯]/g, function (w) {
-         return banglaNums[w];
-      });
+      return String(str).replace(/[০-৯]/g, s => banglaNums[s]);
    }
 
-   // --- Default Settings ---
+   // --- Settings Loader ---
    let settings = JSON.parse(localStorage.getItem('hsp_settings')) || {
-      autoFillEnabled: true,
-      tabWaitDelay: 6000,
-      fieldDelay: 400
+      ...DEFAULTS
    };
 
    function saveSettings() {
@@ -94,69 +97,141 @@
 
    // --- UI Construction ---
    const container = document.createElement('div');
-   container.style.cssText = `position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; align-items: center; gap: 10px;`;
+   container.id = "hsp-pro-container";
+   container.style.cssText = `position: fixed; bottom: 25px; right: 25px; z-index: 10000; display: flex; align-items: center; gap: 12px; font-family: 'Segoe UI', Arial, sans-serif;`;
    document.body.appendChild(container);
 
+   // Notification Toast
+   const toast = document.createElement('div');
+   toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; background: #52c41a; color: white;
+        padding: 12px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: none; z-index: 10001; font-weight: 500; animation: fadeInDown 0.4s ease;
+   `;
+   document.body.appendChild(toast);
+
+   function showToast(msg) {
+      toast.innerHTML = `✅ ${msg}`;
+      toast.style.display = 'block';
+      setTimeout(() => {
+         toast.style.display = 'none';
+      }, 2500);
+   }
+
+   // Main Button
    const floatBtn = document.createElement('div');
    floatBtn.style.cssText = `
-        background: #1890ff; color: white; padding: 12px 20px;
-        border-radius: 50px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        font-weight: bold; font-family: sans-serif; user-select: none; transition: 0.3s;
-        text-align: center; min-width: 120px;
+        background: linear-gradient(135deg, #1890ff 0%, #0050b3 100%); color: white; padding: 12px 24px;
+        border-radius: 12px; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        font-weight: 600; user-select: none; transition: 0.3s; text-align: center; min-width: 140px;
     `;
    floatBtn.innerHTML = '🚀 Start Filling';
    container.appendChild(floatBtn);
 
+   // Settings Icon
    const settingsBtn = document.createElement('div');
    settingsBtn.innerHTML = '⚙️';
    settingsBtn.style.cssText = `
-        background: #fff; border: 1px solid #ddd; width: 40px; height: 40px;
-        border-radius: 50%; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        background: #fff; border: 1px solid #d9d9d9; width: 46px; height: 46px;
+        border-radius: 12px; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-size: 22px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); transition: 0.3s;
     `;
    container.appendChild(settingsBtn);
 
+   // Settings Panel
    const settingsPanel = document.createElement('div');
    settingsPanel.style.cssText = `
-        position: absolute; bottom: 60px; right: 0; background: white;
-        padding: 15px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-        display: none; flex-direction: column; gap: 10px; width: 230px;
-        font-family: Arial, sans-serif !important; font-size: 14px; border: 1px solid #eee;
+        position: absolute; bottom: 70px; right: 0; background: #fff;
+        padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        display: none; flex-direction: column; gap: 14px; width: 280px;
+        border: 1px solid #f0f0f0; animation: slideUp 0.3s ease;
     `;
 
-   // ইনপুট বক্সে font-family: Arial !important দেওয়া হয়েছে যাতে ইংরেজি ফন্ট ফোর্স করা হয়
    settingsPanel.innerHTML = `
-        <strong style="display:block; margin-bottom:5px;">Settings</strong>
-        <label><input type="checkbox" id="autoFillToggle" ${settings.autoFillEnabled ? 'checked' : ''}> Auto Start on Tab Change</label>
-        <label>Tab Wait Delay (ms): <input type="text" id="tabWaitDelay" value="${settings.tabWaitDelay}" style="width:70px; font-family: Arial !important;"></label>
-        <label>Field Fill Delay (ms): <input type="text" id="fieldDelay" value="${settings.fieldDelay}" style="width:70px; font-family: Arial !important;"></label>
-        <button id="saveSettingsBtn" style="background:#1890ff; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">Save & Close</button>
+        <div style="font-weight: bold; font-size: 16px; color: #1f1f1f; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 5px;">Settings</div>
+        
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px;">
+            <input type="checkbox" id="autoFillToggle" ${settings.autoFillEnabled ? 'checked' : ''} style="width: 17px; height: 17px;"> 
+            Auto Start on Tab Change
+        </label>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 13px; color: #666;">Tab Wait Delay (ms)</span>
+                <span class="default-link" id="def-tab">Default</span>
+            </div>
+            <input type="text" id="tabWaitDelay" value="${settings.tabWaitDelay}" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #d9d9d9; font-family: Arial !important; outline: none;">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 13px; color: #666;">Field Fill Delay (ms)</span>
+                <span class="default-link" id="def-field">Default</span>
+            </div>
+            <input type="text" id="fieldDelay" value="${settings.fieldDelay}" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #d9d9d9; font-family: Arial !important; outline: none;">
+        </div>
+
+        <button id="saveSettingsBtn" style="background: #1890ff; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 5px; transition: 0.3s;">Save & Close</button>
    `;
    container.appendChild(settingsPanel);
 
-   // --- Event Listeners ---
-   settingsBtn.onclick = () => {
+   // Style Injection
+   const style = document.createElement('style');
+   style.innerHTML = `
+      @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+      .default-link { font-size: 11px; color: #1890ff; cursor: pointer; font-weight: bold; text-decoration: underline; }
+      .default-link:hover { color: #40a9ff; }
+      #saveSettingsBtn:hover { background: #40a9ff !important; box-shadow: 0 4px 10px rgba(24,144,255,0.3); }
+      #tabWaitDelay:focus, #fieldDelay:focus { border-color: #1890ff !important; }
+   `;
+   document.head.appendChild(style);
+
+   // --- Event Handling ---
+
+   settingsPanel.addEventListener('mousedown', (e) => e.stopPropagation());
+   settingsBtn.onclick = (e) => {
+      e.stopPropagation();
       settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'flex' : 'none';
    };
 
-   document.getElementById('saveSettingsBtn').onclick = () => {
-      const tabDelayRaw = document.getElementById('tabWaitDelay').value;
-      const fieldDelayRaw = document.getElementById('fieldDelay').value;
+   // Default Buttons Logic
+   document.getElementById('def-tab').onclick = () => {
+      document.getElementById('tabWaitDelay').value = DEFAULTS.tabWaitDelay;
+   };
+   document.getElementById('def-field').onclick = () => {
+      document.getElementById('fieldDelay').value = DEFAULTS.fieldDelay;
+   };
 
+   // Mouse Wheel Logic
+   function setupWheel(id, step) {
+      const el = document.getElementById(id);
+      el.addEventListener('wheel', (e) => {
+         e.preventDefault();
+         let val = parseInt(convertToEn(el.value)) || 0;
+         val = (e.deltaY < 0) ? val + step : val - step;
+         el.value = Math.max(0, val);
+      });
+   }
+   setupWheel('tabWaitDelay', 500);
+   setupWheel('fieldDelay', 50);
+
+   // Save Button Logic
+   document.getElementById('saveSettingsBtn').onclick = () => {
       settings.autoFillEnabled = document.getElementById('autoFillToggle').checked;
-      // সেভ করার আগে বাংলাকে ইংরেজিতে কনভার্ট করা হচ্ছে
-      settings.tabWaitDelay = parseInt(convertToEn(tabDelayRaw)) || 6000;
-      settings.fieldDelay = parseInt(convertToEn(fieldDelayRaw)) || 400;
+      settings.tabWaitDelay = parseInt(convertToEn(document.getElementById('tabWaitDelay').value)) || DEFAULTS.tabWaitDelay;
+      settings.fieldDelay = parseInt(convertToEn(document.getElementById('fieldDelay').value)) || DEFAULTS.fieldDelay;
 
       saveSettings();
       settingsPanel.style.display = 'none';
-      alert("Settings Saved successfully in English numerals!");
+      showToast("Settings Saved Successfully!");
    };
 
-   // --- বাটন আপডেট এবং কোর লজিক আগের মতই ---
+   // --- Main Auto Fill Logic ---
+
    function updateBtnUI(state) {
       if (state === 'running') {
-         floatBtn.style.background = '#ff4d4f';
+         floatBtn.style.background = 'linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%)';
          floatBtn.innerHTML = '🛑 Stop Filling';
       } else if (state === 'success') {
          floatBtn.style.background = '#52c41a';
@@ -167,22 +242,17 @@
          floatBtn.innerHTML = '⚠️ Stopped';
          setTimeout(() => updateBtnUI('idle'), 2000);
       } else {
-         floatBtn.style.background = '#1890ff';
+         floatBtn.style.background = 'linear-gradient(135deg, #1890ff 0%, #0050b3 100%)';
          floatBtn.innerHTML = '🚀 Start Filling';
       }
    }
 
    floatBtn.onclick = () => {
-      if (isProcessing) {
-         stopRequested = true;
-      } else {
-         const activeTabElement = document.querySelector('.ant-tabs-tab-active');
-         if (activeTabElement) {
-            const currentTabKey = activeTabElement.getAttribute('data-node-key');
-            processAutoFill(currentTabKey);
-         } else {
-            alert("Active Tab Not Found!");
-         }
+      if (isProcessing) stopRequested = true;
+      else {
+         const active = document.querySelector('.ant-tabs-tab-active');
+         if (active) processAutoFill(active.getAttribute('data-node-key'));
+         else alert("Active Tab Not Found!");
       }
    };
 
@@ -198,8 +268,8 @@
             cancelable: true,
             view: window
          })));
-         let found = false;
-         let attempts = 0;
+         let found = false,
+            attempts = 0;
          const checkInterval = setInterval(() => {
             attempts++;
             if (stopRequested) {
@@ -249,23 +319,21 @@
          }
       }
       isProcessing = false;
-      if (stopRequested) updateBtnUI('stopped');
-      else updateBtnUI('success');
+      updateBtnUI(stopRequested ? 'stopped' : 'success');
+      if (!stopRequested) showToast(`Tab ${tabId} Filled!`);
       stopRequested = false;
    }
 
-   function monitorTabs() {
+   setInterval(() => {
       if (isProcessing || !settings.autoFillEnabled) return;
-      const activeTabElement = document.querySelector('.ant-tabs-tab-active');
-      if (!activeTabElement) return;
-      const currentTabKey = activeTabElement.getAttribute('data-node-key');
+      const active = document.querySelector('.ant-tabs-tab-active');
+      if (!active) return;
+      const currentTabKey = active.getAttribute('data-node-key');
       if (tabConfigs[currentTabKey] && !completedTabs[currentTabKey]) {
          completedTabs[currentTabKey] = true;
          setTimeout(() => {
             if (!isProcessing && settings.autoFillEnabled) processAutoFill(currentTabKey);
          }, settings.tabWaitDelay);
       }
-   }
-
-   setInterval(monitorTabs, 1000);
+   }, 1000);
 })();
