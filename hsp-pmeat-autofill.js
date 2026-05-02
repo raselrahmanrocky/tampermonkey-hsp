@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Multi-Tab Auto Fill (Disabled Field Detection)
+// @name         HSP PMEAT Multi-Tab Auto Fill (Tab Detection Fix)
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      5.5
-// @description  Compact UI with Disabled Field Detection, % Progress, and Import/Export
+// @version      5.8
+// @description  Small Compact UI with Tab & Disabled Field Detection, % Progress, and Import/Export
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -113,7 +113,7 @@
 
     function showToast(msg, type = "success") {
         toast.style.background = type === "success" ? "#52c41a" : (type === "warning" ? "#faad14" : "#ff4d4f");
-        toast.innerHTML = (type === "success" ? "✅ " : "⚠️ ") + msg;
+        toast.innerHTML = (type === "success" ? "✅ " : (type === "warning" ? "⚠️ " : "❌ ")) + msg;
         toast.style.display = 'block';
         setTimeout(() => {
             toast.style.display = 'none';
@@ -218,7 +218,7 @@
         showToast("Saved!");
     };
 
-    // --- CORE AUTO FILL LOGIC ---
+    // --- AUTO FILL UI ENGINE ---
 
     function updateBtnUI(state, percent = 0) {
         if (state === 'running') {
@@ -239,10 +239,22 @@
     }
 
     floatBtn.onclick = () => {
-        if (isProcessing) stopRequested = true;
-        else {
+        if (isProcessing) {
+            stopRequested = true;
+        } else {
+            // প্রথমে চেক করা হচ্ছে পেজে কোনো ট্যাব আছে কি না
+            const tabsFound = document.querySelectorAll('.ant-tabs-tab');
+            if (tabsFound.length === 0) {
+                showToast("Please open the form.", "error");
+                return;
+            }
+
             const active = document.querySelector('.ant-tabs-tab-active');
-            if (active) processAutoFill(active.getAttribute('data-node-key'));
+            if (active) {
+                processAutoFill(active.getAttribute('data-node-key'));
+            } else {
+                showToast("No Active Tab found!", "error");
+            }
         }
     };
 
@@ -251,17 +263,10 @@
         return new Promise((resolve) => {
             const input = document.getElementById(inputId);
             if (!input) return resolve();
-
-            // Check if disabled
             const container = input.closest('.ant-select');
-            if (container && container.classList.contains('ant-select-disabled')) {
-                console.log(`Skipping disabled field: ${inputId}`);
-                return resolve();
-            }
-
+            if (container && container.classList.contains('ant-select-disabled')) return resolve();
             const selector = input.closest('.ant-select-selector');
             if (!selector) return resolve();
-
             ['mousedown', 'mouseup', 'click'].forEach(evt => selector.dispatchEvent(new MouseEvent(evt, {
                 bubbles: true,
                 cancelable: true,
@@ -302,9 +307,8 @@
         if (!config) return;
         const entries = Object.entries(config);
 
-        // ডিজেবল ফিল্ড ডিটেকশন লজিক
-        let disabledCount = 0;
-        let validFields = 0;
+        let disabledCount = 0,
+            validFields = 0;
         for (const [id] of entries) {
             const el = document.getElementById(id);
             if (el) {
@@ -313,7 +317,6 @@
             }
         }
 
-        // যদি সব ফিল্ড ডিজেবল থাকে
         if (validFields > 0 && disabledCount === validFields) {
             showToast("All fields are disabled in this tab!", "warning");
             return;
