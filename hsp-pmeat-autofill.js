@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Multi-Tab Auto Fill (With Start/Stop Toggle)
+// @name         HSP PMEAT Multi-Tab Auto Fill (With Settings - Fixed English Num)
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      2.3
-// @description  Fill Ant Design forms with a floating Start/Stop toggle button
+// @version      3.1
+// @description  Fill Ant Design forms with a floating Start/Stop toggle button and Settings menu (English Numbers Fixed)
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -11,18 +11,48 @@
 (function () {
    'use strict';
 
+   // বাংলা সংখ্যাকে ইংরেজিতে রূপান্তর করার ফাংশন
+   function convertToEn(str) {
+      const banglaNums = {
+         '০': 0,
+         '১': 1,
+         '২': 2,
+         '৩': 3,
+         '৪': 4,
+         '৫': 5,
+         '৬': 6,
+         '৭': 7,
+         '৮': 8,
+         '৯': 9
+      };
+      return String(str).replace(/[০-৯]/g, function (w) {
+         return banglaNums[w];
+      });
+   }
+
+   // --- Default Settings ---
+   let settings = JSON.parse(localStorage.getItem('hsp_settings')) || {
+      autoFillEnabled: true,
+      tabWaitDelay: 6000,
+      fieldDelay: 400
+   };
+
+   function saveSettings() {
+      localStorage.setItem('hsp_settings', JSON.stringify(settings));
+   }
+
    const tabConfigs = {
       "1": {
          'birthPlaceId': 5,
          'religion': 0,
          'currentEduClass': 2,
          'currentEducationDiscipline': 0,
-         'currentInstituteAdmissionSession': 0,
+         'currentInstituteAdmissionSession': 0
       },
       "2": {
          'personPermanentDivisionId': 5,
          'personPermanentDistrictId': 0,
-         'personPermanentUpazilaId': 3,
+         'personPermanentUpazilaId': 3
       },
       "3": {
          'parentsAliveStatus': 0,
@@ -50,7 +80,7 @@
          'familyYearlyExpense': 0,
          'ownedLandExtent': 1,
          'guardianHasLoan': 1,
-         'personFromFreedomFighterGeneration': 1,
+         'personFromFreedomFighterGeneration': 1
       }
    };
 
@@ -59,23 +89,71 @@
       "2": false,
       "3": false
    };
-   let isProcessing = false; // ফিলিং চলছে কি না তা ট্র্যাক করবে
-   let stopRequested = false; // ইউজার স্টপ করতে চাইলে এটি true হবে
-   const globalWaitDelay = 6000;
+   let isProcessing = false;
+   let stopRequested = false;
 
-   // --- Floating Button তৈরি ---
+   // --- UI Construction ---
+   const container = document.createElement('div');
+   container.style.cssText = `position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; align-items: center; gap: 10px;`;
+   document.body.appendChild(container);
+
    const floatBtn = document.createElement('div');
-   floatBtn.innerHTML = '🚀 Start Filling';
    floatBtn.style.cssText = `
-        position: fixed; bottom: 20px; right: 20px;
-        background: #1890ff; color: white; padding: 12px 25px;
+        background: #1890ff; color: white; padding: 12px 20px;
         border-radius: 50px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 9999; font-weight: bold; font-family: sans-serif;
-        user-select: none; transition: 0.3s; text-align: center; min-width: 120px;
+        font-weight: bold; font-family: sans-serif; user-select: none; transition: 0.3s;
+        text-align: center; min-width: 120px;
     `;
-   document.body.appendChild(floatBtn);
+   floatBtn.innerHTML = '🚀 Start Filling';
+   container.appendChild(floatBtn);
 
-   // বাটনের স্টাইল আপডেট করার ফাংশন
+   const settingsBtn = document.createElement('div');
+   settingsBtn.innerHTML = '⚙️';
+   settingsBtn.style.cssText = `
+        background: #fff; border: 1px solid #ddd; width: 40px; height: 40px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        cursor: pointer; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    `;
+   container.appendChild(settingsBtn);
+
+   const settingsPanel = document.createElement('div');
+   settingsPanel.style.cssText = `
+        position: absolute; bottom: 60px; right: 0; background: white;
+        padding: 15px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        display: none; flex-direction: column; gap: 10px; width: 230px;
+        font-family: Arial, sans-serif !important; font-size: 14px; border: 1px solid #eee;
+    `;
+
+   // ইনপুট বক্সে font-family: Arial !important দেওয়া হয়েছে যাতে ইংরেজি ফন্ট ফোর্স করা হয়
+   settingsPanel.innerHTML = `
+        <strong style="display:block; margin-bottom:5px;">Settings</strong>
+        <label><input type="checkbox" id="autoFillToggle" ${settings.autoFillEnabled ? 'checked' : ''}> Auto Start on Tab Change</label>
+        <label>Tab Wait Delay (ms): <input type="text" id="tabWaitDelay" value="${settings.tabWaitDelay}" style="width:70px; font-family: Arial !important;"></label>
+        <label>Field Fill Delay (ms): <input type="text" id="fieldDelay" value="${settings.fieldDelay}" style="width:70px; font-family: Arial !important;"></label>
+        <button id="saveSettingsBtn" style="background:#1890ff; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold;">Save & Close</button>
+   `;
+   container.appendChild(settingsPanel);
+
+   // --- Event Listeners ---
+   settingsBtn.onclick = () => {
+      settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'flex' : 'none';
+   };
+
+   document.getElementById('saveSettingsBtn').onclick = () => {
+      const tabDelayRaw = document.getElementById('tabWaitDelay').value;
+      const fieldDelayRaw = document.getElementById('fieldDelay').value;
+
+      settings.autoFillEnabled = document.getElementById('autoFillToggle').checked;
+      // সেভ করার আগে বাংলাকে ইংরেজিতে কনভার্ট করা হচ্ছে
+      settings.tabWaitDelay = parseInt(convertToEn(tabDelayRaw)) || 6000;
+      settings.fieldDelay = parseInt(convertToEn(fieldDelayRaw)) || 400;
+
+      saveSettings();
+      settingsPanel.style.display = 'none';
+      alert("Settings Saved successfully in English numerals!");
+   };
+
+   // --- বাটন আপডেট এবং কোর লজিক আগের মতই ---
    function updateBtnUI(state) {
       if (state === 'running') {
          floatBtn.style.background = '#ff4d4f';
@@ -94,36 +172,32 @@
       }
    }
 
-   // বাটন ক্লিক ইভেন্ট
    floatBtn.onclick = () => {
       if (isProcessing) {
-         stopRequested = true; // স্টপ রিকোয়েস্ট সেট করা
+         stopRequested = true;
       } else {
          const activeTabElement = document.querySelector('.ant-tabs-tab-active');
          if (activeTabElement) {
             const currentTabKey = activeTabElement.getAttribute('data-node-key');
             processAutoFill(currentTabKey);
          } else {
-            alert("একটিভ ট্যাব পাওয়া যায়নি!");
+            alert("Active Tab Not Found!");
          }
       }
    };
 
    async function fillAntdRapid(inputId, optionIndex) {
-      if (stopRequested) return; // স্টপ বলা হলে সাথে সাথে বের হয়ে যাবে
+      if (stopRequested) return;
       return new Promise((resolve) => {
          const input = document.getElementById(inputId);
          if (!input) return resolve();
-
          const selector = input.closest('.ant-select-selector');
          if (!selector) return resolve();
-
          ['mousedown', 'mouseup', 'click'].forEach(evt => selector.dispatchEvent(new MouseEvent(evt, {
             bubbles: true,
             cancelable: true,
             view: window
          })));
-
          let found = false;
          let attempts = 0;
          const checkInterval = setInterval(() => {
@@ -133,7 +207,6 @@
                resolve();
                return;
             }
-
             const activeDropdown = document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
             if (activeDropdown) {
                const options = activeDropdown.querySelectorAll('.ant-select-item-option');
@@ -158,20 +231,14 @@
    async function processAutoFill(tabId) {
       const config = tabConfigs[tabId];
       if (!config) return;
-
       isProcessing = true;
       stopRequested = false;
       updateBtnUI('running');
-
-      console.log(`🚀 ট্যাব ${tabId}-এর কাজ শুরু...`);
-
       for (const [inputId, index] of Object.entries(config)) {
-         if (stopRequested) break; // লুপের মাঝে চেক করা হচ্ছে ইউজার স্টপ করেছে কি না
+         if (stopRequested) break;
          await fillAntdRapid(inputId, index);
-         await new Promise(r => setTimeout(r, 400));
+         await new Promise(r => setTimeout(r, settings.fieldDelay));
       }
-
-      // ট্যাব ২-এর জন্য চেকবক্স হ্যান্ডলিং
       if (tabId === "2" && !stopRequested) {
          const checkbox = document.getElementById('sameAsPermanent');
          if (checkbox && !checkbox.checked) {
@@ -181,38 +248,24 @@
             }));
          }
       }
-
       isProcessing = false;
-      if (stopRequested) {
-         console.log("🛑 ইউজার দ্বারা প্রসেস বন্ধ করা হয়েছে।");
-         updateBtnUI('stopped');
-      } else {
-         console.log(`🏁 ট্যাব ${tabId}-এর কাজ সফলভাবে শেষ!`);
-         updateBtnUI('success');
-      }
+      if (stopRequested) updateBtnUI('stopped');
+      else updateBtnUI('success');
       stopRequested = false;
    }
 
-   // অটো-মনিটর ফাংশন
    function monitorTabs() {
-      if (isProcessing) return; // যদি অলরেডি কাজ চলে তবে নতুন করে অটো স্টার্ট হবে না
-
+      if (isProcessing || !settings.autoFillEnabled) return;
       const activeTabElement = document.querySelector('.ant-tabs-tab-active');
       if (!activeTabElement) return;
-
       const currentTabKey = activeTabElement.getAttribute('data-node-key');
-
       if (tabConfigs[currentTabKey] && !completedTabs[currentTabKey]) {
          completedTabs[currentTabKey] = true;
-         console.log(`⏳ অটো-ফিল শুরু হবে ${globalWaitDelay/1000}s পর...`);
-
          setTimeout(() => {
-            // ৬ সেকেন্ড পর ফিল শুরু করার আগে আবার চেক করা হচ্ছে
-            if (!isProcessing) processAutoFill(currentTabKey);
-         }, globalWaitDelay);
+            if (!isProcessing && settings.autoFillEnabled) processAutoFill(currentTabKey);
+         }, settings.tabWaitDelay);
       }
    }
 
    setInterval(monitorTabs, 1000);
-
 })();
