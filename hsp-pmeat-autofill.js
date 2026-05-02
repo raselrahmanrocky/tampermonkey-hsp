@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         HSP PMEAT Multi-Tab Auto Fill (With Import/Export)
+// @name         HSP PMEAT Multi-Tab Auto Fill (Disabled Field Detection)
 // @namespace    http://facebook.com/raselrahmanrocky/
-// @version      5.0
-// @description  Compact UI with % Progress, Default Reset, Toast, and Import/Export Settings
+// @version      5.5
+// @description  Compact UI with Disabled Field Detection, % Progress, and Import/Export
 // @author       Md. Rasel Rahman Rocky
 // @match        https://hsp.pmeat.gov.bd/*
 // @grant        none
@@ -62,7 +62,7 @@
         }
     };
 
-    // --- Load Data ---
+    // --- Data Management ---
     let settings = JSON.parse(localStorage.getItem('hsp_settings')) || {
         ...DEFAULTS.settings
     };
@@ -108,16 +108,16 @@
     document.body.appendChild(container);
 
     const toast = document.createElement('div');
-    toast.style.cssText = `position: fixed; top: 15px; right: 15px; background: #52c41a; color: white; padding: 10px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 10001; font-weight: 500; font-size: 13px; animation: fadeInDown 0.4s ease;`;
+    toast.style.cssText = `position: fixed; top: 15px; right: 15px; color: white; padding: 10px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 10001; font-weight: 500; font-size: 13px; animation: fadeInDown 0.4s ease;`;
     document.body.appendChild(toast);
 
     function showToast(msg, type = "success") {
-        toast.style.background = type === "success" ? "#52c41a" : "#ff4d4f";
-        toast.innerHTML = (type === "success" ? "✅ " : "❌ ") + msg;
+        toast.style.background = type === "success" ? "#52c41a" : (type === "warning" ? "#faad14" : "#ff4d4f");
+        toast.innerHTML = (type === "success" ? "✅ " : "⚠️ ") + msg;
         toast.style.display = 'block';
         setTimeout(() => {
             toast.style.display = 'none';
-        }, 2500);
+        }, 3000);
     }
 
     const floatBtn = document.createElement('div');
@@ -136,23 +136,9 @@
     settingsPanel.innerHTML = `
         <div style="font-weight: bold; font-size: 14px; color: #1f1f1f; border-bottom: 1px solid #eee; padding-bottom: 8px;">Settings</div>
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;"><input type="checkbox" id="autoFillToggle" ${settings.autoFillEnabled ? 'checked' : ''}> Auto Start</label>
-        
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; justify-content: space-between;"><span style="font-size: 12px; color: #666;">Tab Delay (ms)</span><span class="default-link" id="def-tab">Default</span></div>
-            <input type="text" id="tabWaitDelay" value="${settings.tabWaitDelay}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #d9d9d9; font-family: Arial !important; font-size: 12px;">
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; justify-content: space-between;"><span style="font-size: 12px; color: #666;">Field Delay (ms)</span><span class="default-link" id="def-field">Default</span></div>
-            <input type="text" id="fieldDelay" value="${settings.fieldDelay}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #d9d9d9; font-family: Arial !important; font-size: 12px;">
-        </div>
-
-        <div style="display: flex; gap: 8px; margin-top: 5px;">
-            <button id="exportBtn" style="flex:1; background:#f0f0f0; border:1px solid #d9d9d9; padding:6px; border-radius:4px; font-size:11px; cursor:pointer;">📤 Export</button>
-            <button id="importBtn" style="flex:1; background:#f0f0f0; border:1px solid #d9d9d9; padding:6px; border-radius:4px; font-size:11px; cursor:pointer;">📥 Import</button>
-            <input type="file" id="importFile" style="display:none;" accept=".json">
-        </div>
-
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 12px; color: #666;">Tab Delay (ms)</span><span class="default-link" id="def-tab">Default</span></div><input type="text" id="tabWaitDelay" value="${settings.tabWaitDelay}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #d9d9d9; font-family: Arial !important; font-size: 12px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;"><div style="display: flex; justify-content: space-between;"><span style="font-size: 12px; color: #666;">Field Delay (ms)</span><span class="default-link" id="def-field">Default</span></div><input type="text" id="fieldDelay" value="${settings.fieldDelay}" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #d9d9d9; font-family: Arial !important; font-size: 12px;"></div>
+        <div style="display: flex; gap: 8px; margin-top: 5px;"><button id="exportBtn" style="flex:1; background:#f0f0f0; border:1px solid #d9d9d9; padding:6px; border-radius:4px; font-size:11px; cursor:pointer;">📤 Export</button><button id="importBtn" style="flex:1; background:#f0f0f0; border:1px solid #d9d9d9; padding:6px; border-radius:4px; font-size:11px; cursor:pointer;">📥 Import</button><input type="file" id="importFile" style="display:none;" accept=".json"></div>
         <button id="saveSettingsBtn" style="background: #1890ff; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">Save & Close</button>
    `;
     container.appendChild(settingsPanel);
@@ -161,8 +147,7 @@
     style.innerHTML = `@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @keyframes fadeInDown { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } } .default-link { font-size: 10px; color: #1890ff; cursor: pointer; font-weight: bold; text-decoration: underline; }`;
     document.head.appendChild(style);
 
-    // --- Export/Import Logic ---
-
+    // --- Logic Handling ---
     document.getElementById('exportBtn').onclick = () => {
         const dataStr = JSON.stringify({
             settings,
@@ -174,13 +159,12 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `hsp_config_${new Date().toLocaleDateString()}.json`;
+        link.download = `hsp_config.json`;
         link.click();
         showToast("Config Exported!");
     };
 
     document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
-
     document.getElementById('importFile').onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -194,8 +178,6 @@
                     saveData();
                     showToast("Imported! Reloading...");
                     setTimeout(() => location.reload(), 1500);
-                } else {
-                    throw new Error("Invalid Format");
                 }
             } catch (err) {
                 showToast("Invalid File!", "error");
@@ -204,7 +186,6 @@
         reader.readAsText(file);
     };
 
-    // --- Standard Handling ---
     settingsPanel.addEventListener('mousedown', (e) => e.stopPropagation());
     settingsBtn.onclick = (e) => {
         e.stopPropagation();
@@ -237,7 +218,8 @@
         showToast("Saved!");
     };
 
-    // --- Fill Logic ---
+    // --- CORE AUTO FILL LOGIC ---
+
     function updateBtnUI(state, percent = 0) {
         if (state === 'running') {
             floatBtn.style.background = 'linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%)';
@@ -269,8 +251,17 @@
         return new Promise((resolve) => {
             const input = document.getElementById(inputId);
             if (!input) return resolve();
+
+            // Check if disabled
+            const container = input.closest('.ant-select');
+            if (container && container.classList.contains('ant-select-disabled')) {
+                console.log(`Skipping disabled field: ${inputId}`);
+                return resolve();
+            }
+
             const selector = input.closest('.ant-select-selector');
             if (!selector) return resolve();
+
             ['mousedown', 'mouseup', 'click'].forEach(evt => selector.dispatchEvent(new MouseEvent(evt, {
                 bubbles: true,
                 cancelable: true,
@@ -310,21 +301,39 @@
         const config = tabConfigs[tabId];
         if (!config) return;
         const entries = Object.entries(config);
-        const totalFields = entries.length;
-        let completedCount = 0;
+
+        // ডিজেবল ফিল্ড ডিটেকশন লজিক
+        let disabledCount = 0;
+        let validFields = 0;
+        for (const [id] of entries) {
+            const el = document.getElementById(id);
+            if (el) {
+                validFields++;
+                if (el.closest('.ant-select-disabled')) disabledCount++;
+            }
+        }
+
+        // যদি সব ফিল্ড ডিজেবল থাকে
+        if (validFields > 0 && disabledCount === validFields) {
+            showToast("All fields are disabled in this tab!", "warning");
+            return;
+        }
+
         isProcessing = true;
         stopRequested = false;
         updateBtnUI('running', 0);
+        let completedCount = 0;
         for (const [inputId, index] of entries) {
             if (stopRequested) break;
             await fillAntdRapid(inputId, index);
             completedCount++;
-            updateBtnUI('running', Math.round((completedCount / totalFields) * 100));
+            updateBtnUI('running', Math.round((completedCount / entries.length) * 100));
             await new Promise(r => setTimeout(r, settings.fieldDelay));
         }
+
         if (tabId === "2" && !stopRequested) {
             const checkbox = document.getElementById('sameAsPermanent');
-            if (checkbox && !checkbox.checked) {
+            if (checkbox && !checkbox.checked && !checkbox.disabled) {
                 checkbox.click();
                 checkbox.dispatchEvent(new Event('change', {
                     bubbles: true
